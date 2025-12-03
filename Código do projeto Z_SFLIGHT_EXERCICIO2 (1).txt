@@ -1,0 +1,75 @@
+*&---------------------------------------------------------------------*
+*& Report Z_SFLIGHT_EXERCICIO2
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT Z_SFLIGHT_EXERCICIO2.
+
+TABLES: SFLIGHT.
+
+TYPES: BEGIN OF ty_flight_data,
+         carrid    TYPE sflight-carrid,
+         connid    TYPE sflight-connid,
+         fldate    TYPE sflight-fldate,
+         seatsmax  TYPE sflight-seatsmax,
+         seatsocc  TYPE sflight-seatsocc,
+         price     TYPE sflight-price,
+         currency  TYPE sflight-currency,
+         free_seats TYPE i,
+         occup_rate TYPE p DECIMALS 2,
+         estimated_revenue TYPE p DECIMALS 2,
+       END OF ty_flight_data.
+
+DATA: lt_flights TYPE TABLE OF ty_flight_data,
+      ls_flight  TYPE ty_flight_data.
+
+PARAMETERS: p_carrid TYPE sflight-carrid OBLIGATORY.
+SELECT-OPTIONS: s_date FOR sflight-fldate.
+
+START-OF-SELECTION.
+
+  SELECT carrid connid fldate seatsmax seatsocc price currency
+    FROM sflight
+    INTO CORRESPONDING FIELDS OF TABLE lt_flights
+    WHERE carrid = p_carrid
+      AND fldate IN s_date.
+
+  IF sy-subrc <> 0.
+    MESSAGE 'Nenhum voo encontrado com os critérios de seleção.' TYPE 'I'.
+    EXIT.
+  ENDIF.
+
+  LOOP AT lt_flights INTO ls_flight.
+
+    ls_flight-free_seats = ls_flight-seatsmax - ls_flight-seatsocc.
+
+    IF ls_flight-seatsmax > 0.
+      ls_flight-occup_rate = ( ls_flight-seatsocc / ls_flight-seatsmax ) * 100.
+    ELSE.
+      ls_flight-occup_rate = 0.
+    ENDIF.
+
+    ls_flight-estimated_revenue = ls_flight-price * ls_flight-seatsocc.
+
+    MODIFY lt_flights FROM ls_flight.
+
+  ENDLOOP.
+
+  SORT lt_flights BY fldate connid.
+
+  ULINE.
+  WRITE: / 'Cia', 'Voo', 'Data',
+           'Max', 'Ocup', 'Livres',
+           'Ocup. %', 'Receita Estimada'.
+  ULINE.
+
+  LOOP AT lt_flights INTO ls_flight.
+    WRITE: / ls_flight-carrid,
+             ls_flight-connid,
+             ls_flight-fldate,
+             ls_flight-seatsmax,
+             ls_flight-seatsocc,
+             ls_flight-free_seats,
+             ls_flight-occup_rate,
+             ls_flight-estimated_revenue CURRENCY ls_flight-currency.
+  ENDLOOP.
